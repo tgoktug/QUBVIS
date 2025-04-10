@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Summarization</title>
+</head>
+<body>
+    <h1>Video Summarization</h1>
+
+    <form id="videoForm">
+        <label for="video_url">Video URL:</label><br>
+        <input type="text" id="video_url" name="video_url" placeholder="https://www.youtube.com/watch?v=video_id" required><br><br>
+
+        <label for="query">Query:</label><br>
+        <input type="text" id="query" name="query" placeholder="Search Query" required><br><br>
+
+        <button type="submit">Summarize</button>
+    </form>
+
+    <div id="result">
+        <h2>Summary Video</h2>
+        <video id="summary_video" controls width="600" style="display:none;"></video>
+
+        <h2>Captions</h2>
+        <ul id="captions_list" style="display:none;">
+            <!-- Captions will be displayed here -->
+        </ul>
+
+        <p id="no_summary" style="display:none; color:red;">Video summary could not be generated.</p>
+    </div>
+
+    <script>
+        document.getElementById('videoForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            let videoUrl = document.getElementById('video_url').value;
+            let query = document.getElementById('query').value;
+
+            fetch('/process_video', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ video_url: videoUrl, query: query })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Check if summary video exists
+                if (data.summary_video) {
+                    let videoElement = document.getElementById('summary_video');
+                    videoElement.src = data.summary_video;
+                    videoElement.style.display = 'block';
+                    document.getElementById('no_summary').style.display = 'none';
+                } else {
+                    document.getElementById('no_summary').style.display = 'block';
+                }
+
+                // Check if captions exist
+                if (data.captions && data.captions.length > 0) {
+                    let captionsList = document.getElementById('captions_list');
+                    captionsList.innerHTML = ''; // Clear any previous captions
+
+                    data.captions.forEach(caption => {
+                        let listItem = document.createElement('li');
+                        listItem.textContent = caption;
+                        captionsList.appendChild(listItem);
+                    });
+                    captionsList.style.display = 'block';
+                } else {
+                    document.getElementById('captions_list').style.display = 'none';
+                }
+            })
+            .catch(error => {
+                alert('An error occurred: ' + error);
+            });
+        });
+    </script>
+</body>
+</html>
