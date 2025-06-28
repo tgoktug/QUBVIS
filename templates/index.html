@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Video Summarization</title>
+</head>
+<body>
+  <h1>Video Summarization</h1>
+
+  <form id="videoForm">
+    <label for="video_url">Video URL:</label><br>
+    <input type="text" id="video_url" name="video_url" placeholder="https://www.youtube.com/watch?v=video_id" required><br><br>
+
+    <label for="query">Query:</label><br>
+    <input type="text" id="query" name="query" placeholder="Search Query" required><br><br>
+
+    <label for="transcribe">Also Transcribe:</label>
+    <input type="checkbox" id="transcribe" name="transcribe"><br>
+
+    <label for="multimodal">Use Multimodal Summarization:</label>
+    <input type="checkbox" id="multimodal" name="multimodal"><br><br>
+
+    <button type="submit">Summarize</button>
+  </form>
+
+  <div id="result">
+    <h2>Summary Video</h2>
+    <video id="summary_video" controls width="600" style="display:none;"></video>
+
+    <h2>Captions</h2>
+    <ul id="captions_list" style="display:none;"></ul>
+
+    <h2>Transcript</h2>
+    <pre id="transcript_text" style="display:none; background:#f4f4f4; padding:10px;"></pre>
+
+    <p id="no_summary" style="display:none; color:red;">Video summary could not be generated.</p>
+  </div>
+
+  <script>
+    document.getElementById('videoForm').addEventListener('submit', function(event) {
+      event.preventDefault();
+
+      const videoUrl = document.getElementById('video_url').value;
+      const query = document.getElementById('query').value;
+      const transcribe = document.getElementById('transcribe').checked;
+      const multimodal = document.getElementById('multimodal').checked;
+      const videoId = videoUrl.split('v=')[1];
+
+      fetch('/multimodal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          video_url: videoUrl,
+          video_id: videoId,
+          query: query,
+          checkbox: multimodal  // 👈 backend'de kontrol edilen alan
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        // 🎬 Show summary video
+        if (data.summary_video) {
+          const videoEl = document.getElementById('summary_video');
+          videoEl.src = data.summary_video;
+          videoEl.style.display = 'block';
+          document.getElementById('no_summary').style.display = 'none';
+        } else {
+          document.getElementById('summary_video').style.display = 'none';
+          document.getElementById('no_summary').style.display = 'block';
+        }
+
+        // 📋 Captions
+        const captionList = document.getElementById('captions_list');
+        if (data.captions && data.captions.length > 0) {
+          captionList.innerHTML = '';
+          data.captions.forEach(text => {
+            const li = document.createElement('li');
+            li.textContent = text;
+            captionList.appendChild(li);
+          });
+          captionList.style.display = 'block';
+        } else {
+          captionList.style.display = 'none';
+        }
+
+        // 🗣️ Transcribe
+        if (transcribe) {
+          fetch('/transcribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ video_id: videoId, query: query })
+          })
+          .then(res => res.json())
+          .then(tr => {
+            const pre = document.getElementById('transcript_text');
+            pre.textContent = JSON.stringify(tr.relevant_segments, null, 2);
+            pre.style.display = 'block';
+          });
+        }
+      })
+      .catch(err => {
+        console.error('Error:', err);
+        alert('An error occurred.');
+      });
+    });
+  </script>
+</body>
+</html>
